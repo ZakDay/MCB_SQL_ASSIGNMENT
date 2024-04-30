@@ -1,0 +1,131 @@
+CREATE OR REPLACE PACKAGE PR_TABLE_DATA AS
+  PROCEDURE INSERT_DATA;
+END PR_TABLE_DATA;
+/
+
+CREATE OR REPLACE PACKAGE BODY PR_TABLE_DATA AS
+  PROCEDURE INSERT_DATA IS
+    -- Supplier cursor
+    CURSOR C1 IS
+      SELECT DISTINCT
+             SUPPLIER_NAME,
+             REGEXP_SUBSTR(SUPP_CONTACT_NAME, '^[^ ]+') AS FIRST_NAME,
+             REGEXP_SUBSTR(SUPP_CONTACT_NAME, ' [^ ]+$') AS LAST_NAME,
+             SUPP_ADDRESS,
+             REGEXP_SUBSTR(SUPP_CONTACT_NUMBER, '\d{7,}') AS TEL_NUMBER,
+             REGEXP_SUBSTR(SUPP_CONTACT_NUMBER, '\d{8,}') AS MOBILE_PHONE,
+             SUPP_EMAIL
+      FROM XXBCM_ORDER_MGT
+      WHERE NOT EXISTS (
+          SELECT 1
+          FROM XXBCM_SUPPLIER_TBL
+          WHERE XXBCM_SUPPLIER_TBL.SUPPLIER_NAME = XXBCM_ORDER_MGT.SUPPLIER_NAME
+        )
+        AND REGEXP_LIKE(SUPP_CONTACT_NUMBER, '\d{7,}')
+        AND REGEXP_LIKE(SUPP_CONTACT_NUMBER, '\d{8,}');
+
+    -- Order cursor
+    CURSOR C2 IS
+      SELECT DISTINCT
+             ORDER_REF,
+             SUPPLIER_NAME,
+             TO_DATE(ORDER_DATE, 'DD-MON-YYYY') AS ORDER_DATE,
+             TO_NUMBER(REPLACE(ORDER_TOTAL_AMOUNT, ',')) AS ORDER_TOTAL_AMOUNT,
+             ORDER_DESCRIPTION,
+             ORDER_STATUS,
+             TO_NUMBER(REPLACE(ORDER_LINE_AMOUNT, ',')) AS ORDER_LINE_AMOUNT
+      FROM XXBCM_ORDER_MGT
+      WHERE NOT EXISTS (
+          SELECT 1
+          FROM XXBCM_ORDER_TBL
+          WHERE XXBCM_ORDER_TBL.ORDER_REF = XXBCM_ORDER_MGT.ORDER_REF
+        )
+        AND REGEXP_LIKE(ORDER_TOTAL_AMOUNT, '^\d+$')
+        AND REGEXP_LIKE(ORDER_LINE_AMOUNT, '^\d+$');
+
+    -- Invoice cursor
+    CURSOR C3 IS
+      SELECT
+            INVOICE_REFERENCE,
+            ORDER_REF,
+            TO_DATE(INVOICE_DATE, 'DD-MM-YYYY') AS INVOICE_DATE,
+            INVOICE_STATUS,
+            INVOICE_HOLD_REASON,
+            TO_NUMBER(REPLACE(INVOICE_AMOUNT, ',')) AS INVOICE_AMOUNT,
+            INVOICE_DESCRIPTION
+      FROM XXBCM_ORDER_MGT
+      WHERE NOT EXISTS (
+          SELECT 1
+          FROM XXBCM_INVOICE_TBL
+          WHERE XXBCM_INVOICE_TBL.INVOICE_REFERENCE = XXBCM_ORDER_MGT.INVOICE_REFERENCE
+            AND XXBCM_INVOICE_TBL.ORDER_REF = XXBCM_ORDER_MGT.ORDER_REF
+        )
+        AND INVOICE_REFERENCE IS NOT NULL
+        AND REGEXP_LIKE(INVOICE_AMOUNT, '^\d+$');
+
+  BEGIN
+    FOR supplier IN C1 LOOP
+      INSERT INTO XXBCM_SUPPLIER_TBL (
+        SUPPLIER_NAME,
+        FIRST_NAME,
+        LAST_NAME,
+        SUPP_ADDRESS,
+        TEL_NUMBER,
+        MOBILE_NUMBER,
+        SUPP_EMAIL_ADD
+      ) VALUES (
+        supplier.SUPPLIER_NAME,
+        supplier.FIRST_NAME,
+        supplier.LAST_NAME,
+        supplier.SUPP_ADDRESS,
+        supplier.TEL_NUMBER,
+        supplier.MOBILE_PHONE,
+        supplier.SUPP_EMAIL
+      );
+    END LOOP;
+
+    FOR order_rec IN C2 LOOP
+      INSERT INTO XXBCM_ORDER_TBL (
+        ORDER_REF,
+        SUPPLIER_NAME,
+        ORDER_DATE,
+        ORDER_TOTAL_AMOUNT,
+        ORDER_DESCRIPTION,
+        ORDER_STATUS,
+        ORDER_LINE_AMOUNT
+      ) VALUES (
+        order_rec.ORDER_REF,
+        order_rec.SUPPLIER_NAME,
+        order_rec.ORDER_DATE,
+        order_rec.ORDER_TOTAL_AMOUNT,
+        order_rec.ORDER_DESCRIPTION,
+        order_rec.ORDER_STATUS,
+        order_rec.ORDER_LINE_AMOUNT
+      );
+    END LOOP;
+
+    FOR invoice IN C3 LOOP
+      INSERT INTO XXBCM_INVOICE_TBL (
+        INVOICE_REFERENCE,
+        ORDER_REF,
+        INVOICE_DATE,
+        INVOICE_STATUS,
+        INVOICE_HOLD_REASON,
+        INVOICE_AMOUNT,
+        INVOICE_DESCRIPTION
+      ) VALUES (
+        invoice.INVOICE_REFERENCE,
+        invoice.ORDER_REF,
+        invoice.INVOICE_DATE,
+        invoice.INVOICE_STATUS,
+        invoice.INVOICE_HOLD_REASON,
+        invoice.INVOICE_AMOUNT,
+        invoice.INVOICE_DESCRIPTION
+      );
+    END LOOP;
+
+    COMMIT;
+  END INSERT_DATA;
+END PR_TABLE_DATA;
+
+--EXEC PR_TABLE_DATA.INSERT_DATA;
