@@ -1,460 +1,748 @@
-SQL Assignment
-To create and normalize the database schema based on the information provided in the scenario, we need to follow best practices for naming conventions and ensure data normalization. The description indicates a need for extracting and organizing data related to Purchase Orders, Invoices, and Payments from a raw table named XXBCM_ORDER_MGT. Below is an example of how the schema could be designed and normalized.
+Sarvesh Soochit                                                                                                                                         30 APR 2024
+# SQL Assignment
+To create and normalize the database schema based on the information provided in the scenario, we need to follow best practices for naming conventions and ensure data normalization. The description indicates a need for extracting and organizing data related to Purchase Orders, Invoices, and Payments from a raw table named <a name="ole_link8"></a>XXBCM\_ORDER\_MGT. Below is an example of how the schema could be designed and normalized.
+
 Tools Used:
-1.	Oracle SQL Developer
-2.	Notepad++
-Proposed Database Schema
-1.	XXBCM_ORDER_MGT
-•	ORDER_REF 			
-•	ORDER_DATE 			
-•	SUPPLIER_NAME 		
-•	SUPP_CONTACT_NAME 	
-•	SUPP_ADDRESS 		
-•	SUPP_CONTACT_NUMBER 
-•	SUPP_EMAIL 			
-•	ORDER_TOTAL_AMOUNT 	
-•	ORDER_DESCRIPTION 	
-•	ORDER_STATUS 		
-•	ORDER_LINE_AMOUNT 	
-•	INVOICE_REFERENCE 	
-•	INVOICE_DATE 		
-•	INVOICE_STATUS 		
-•	INVOICE_HOLD_REASON 
-•	INVOICE_AMOUNT 		
-•	INVOICE_DESCRIPTION 
-2.	XXBCM_SUPPLIER_TBL
-•	SUPPLIER_NAME 	
-•	FIRST_NAME
-•	LAST_NAME
-•	SUPP_ADDRESS 	
-•	TEL_NUMBER
-•	MOBILE_NUMBER
-•	SUPP_EMAIL_ADD 
-
-
-	
-3.	XXBCM_ORDER_TBL
-•	ORDER_ID
-•	ORDER_REF 		
-•	SUPPLIER_NAME		
-•	ORDER_DATE 		
-•	ORDER_TOTAL_AMOUNT
-•	ORDER_DESCRIPTION
-•	ORDER_STATUS	
-•	ORDER_LINE_AMOUNT
-4.	XXBCM_INVOICE_TBL
-•	INVOICE_ID
-•	INVOICE_REFERENCE 	
-•	ORDER_REF		
-•	INVOICE_DATE	
-•	INVOICE_STATUS		
-•	INVOICE_HOLD_REASON
-•	INVOICE_AMOUNT	
-•	INVOICE_DESCRIPTION
-Normalization
-•	1st Normal Form (1NF): Each table has a primary key, and all attributes contain only atomic values.
-•	2nd Normal Form (2NF): All attributes in the table depend solely on the primary key.
-•	3rd Normal Form (3NF): All fields can only depend on the primary key and not on other fields.
-
-
-
-
-
-
-
-
-
-
-
-
-SQL to Create Tables
--- TABLE NORMALISATION
-
-  CREATE TABLE XXBCM_ORDER_MGT 
-   (    
-    ORDER_REF           VARCHAR2(2000), 
-    ORDER_DATE          VARCHAR2(2000), 
-    SUPPLIER_NAME       VARCHAR2(2000), 
-    SUPP_CONTACT_NAME   VARCHAR2(2000), 
-    SUPP_ADDRESS        VARCHAR2(2000), 
-    SUPP_CONTACT_NUMBER VARCHAR2(2000), 
-    SUPP_EMAIL          VARCHAR2(2000), 
-    ORDER_TOTAL_AMOUNT  VARCHAR2(2000), 
-    ORDER_DESCRIPTION   VARCHAR2(2000), 
-    ORDER_STATUS        VARCHAR2(2000), 
-    ORDER_LINE_AMOUNT   VARCHAR2(2000), 
-    INVOICE_REFERENCE   VARCHAR2(2000), 
-    INVOICE_DATE        VARCHAR2(2000), 
-    INVOICE_STATUS      VARCHAR2(2000), 
-    INVOICE_HOLD_REASON VARCHAR2(2000), 
-    INVOICE_AMOUNT      VARCHAR2(2000), 
-    INVOICE_DESCRIPTION VARCHAR2(2000)
-   ) ;
-    
-    CREATE TABLE XXBCM_SUPPLIER_TBL
-   (
-    SUPPLIER_NAME       VARCHAR2(1000) NOT NULL, 
-    FIRST_NAME  VARCHAR2(500)  NOT NULL,
-    LAST_NAME   VARCHAR2(500)  NOT NULL,    
-    SUPP_ADDRESS        VARCHAR2(2000),
-    TEL_NUMBER VARCHAR2(8),
-    MOBILE_NUMBER VARCHAR2(8),  
-    SUPP_EMAIL_ADD          VARCHAR2(200),
-    CONSTRAINT XXBCM_SUPPLIER_PK PRIMARY KEY (SUPPLIER_NAME)
-    ) ;
-    
-
-CREATE TABLE XXBCM_ORDER_TBL
-   (
-    ORDER_ID INTEGER GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1) NOT NULL,
-    ORDER_REF           VARCHAR2(15) NOT NULL, 
-    SUPPLIER_NAME       VARCHAR2(1000) NOT NULL,
-    ORDER_DATE          DATE,
-    ORDER_TOTAL_AMOUNT  NUMERIC(15,2), 
-    ORDER_DESCRIPTION   VARCHAR2(2000), 
-    ORDER_STATUS        VARCHAR2(15), 
-    ORDER_LINE_AMOUNT   NUMERIC(15,2),
-    CONSTRAINT XXBCM_ORDER_PK PRIMARY KEY (ORDER_ID, ORDER_REF),
-    CONSTRAINT XXBCM_SUPPLIER_FK FOREIGN KEY (SUPPLIER_NAME) REFERENCES XXBCM_SUPPLIER_TBL (SUPPLIER_NAME)
-    ) ;
-    
-    
-    CREATE TABLE XXBCM_INVOICE_TBL
-   (
-    INVOICE_ID INTEGER GENERATED ALWAYS AS IDENTITY (START WITH 1 INCREMENT BY 1) NOT NULL,
-    INVOICE_REFERENCE   VARCHAR2(2000) NOT NULL, 
-    ORDER_REF           VARCHAR2(15) NOT NULL,
-    INVOICE_DATE        DATE, 
-    INVOICE_STATUS      VARCHAR2(15), 
-    INVOICE_HOLD_REASON VARCHAR2(200), 
-    INVOICE_AMOUNT      NUMERIC(15,2), 
-    INVOICE_DESCRIPTION VARCHAR2(2000),
-    CONSTRAINT XXBCM_INVOICE_ORD_PK PRIMARY KEY (INVOICE_ID,INVOICE_REFERENCE,ORDER_REF)
-
-    ) ;
-
-Migration – SQL Procedure
-
-CREATE OR REPLACE PACKAGE PR_TABLE_DATA AS
-  PROCEDURE INSERT_DATA;
-END PR_TABLE_DATA;
-/
-
-CREATE OR REPLACE PACKAGE BODY PR_TABLE_DATA AS
-  PROCEDURE INSERT_DATA IS
-    -- Supplier cursor
-    CURSOR C1 IS
-      SELECT DISTINCT
-             SUPPLIER_NAME,
-             REGEXP_SUBSTR(SUPP_CONTACT_NAME, '^[^ ]+') AS FIRST_NAME,
-             REGEXP_SUBSTR(SUPP_CONTACT_NAME, ' [^ ]+$') AS LAST_NAME,
-             SUPP_ADDRESS,
-             REGEXP_SUBSTR(SUPP_CONTACT_NUMBER, '\d{7,}') AS TEL_NUMBER,
-             REGEXP_SUBSTR(SUPP_CONTACT_NUMBER, '\d{8,}') AS MOBILE_PHONE,
-             SUPP_EMAIL
-      FROM XXBCM_ORDER_MGT
-      WHERE NOT EXISTS (
-          SELECT 1
-          FROM XXBCM_SUPPLIER_TBL
-          WHERE XXBCM_SUPPLIER_TBL.SUPPLIER_NAME = XXBCM_ORDER_MGT.SUPPLIER_NAME
-        )
-        AND REGEXP_LIKE(SUPP_CONTACT_NUMBER, '\d{7,}')
-        AND REGEXP_LIKE(SUPP_CONTACT_NUMBER, '\d{8,}');
-
-    -- Order cursor
-    CURSOR C2 IS
-      SELECT DISTINCT
-             ORDER_REF,
-             SUPPLIER_NAME,
-             TO_DATE(ORDER_DATE, 'DD-MON-YYYY') AS ORDER_DATE,
-             TO_NUMBER(REPLACE(ORDER_TOTAL_AMOUNT, ',')) AS ORDER_TOTAL_AMOUNT,
-             ORDER_DESCRIPTION,
-             ORDER_STATUS,
-             TO_NUMBER(REPLACE(ORDER_LINE_AMOUNT, ',')) AS ORDER_LINE_AMOUNT
-      FROM XXBCM_ORDER_MGT
-      WHERE NOT EXISTS (
-          SELECT 1
-          FROM XXBCM_ORDER_TBL
-          WHERE XXBCM_ORDER_TBL.ORDER_REF = XXBCM_ORDER_MGT.ORDER_REF
-        )
-        AND REGEXP_LIKE(ORDER_TOTAL_AMOUNT, '^\d+$')
-        AND REGEXP_LIKE(ORDER_LINE_AMOUNT, '^\d+$');
-
-    -- Invoice cursor
-    CURSOR C3 IS
-      SELECT
-            INVOICE_REFERENCE,
-            ORDER_REF,
-            TO_DATE(INVOICE_DATE, 'DD-MM-YYYY') AS INVOICE_DATE,
-            INVOICE_STATUS,
-            INVOICE_HOLD_REASON,
-            TO_NUMBER(REPLACE(INVOICE_AMOUNT, ',')) AS INVOICE_AMOUNT,
-            INVOICE_DESCRIPTION
-      FROM XXBCM_ORDER_MGT
-      WHERE NOT EXISTS (
-          SELECT 1
-          FROM XXBCM_INVOICE_TBL
-          WHERE XXBCM_INVOICE_TBL.INVOICE_REFERENCE = XXBCM_ORDER_MGT.INVOICE_REFERENCE
-            AND XXBCM_INVOICE_TBL.ORDER_REF = XXBCM_ORDER_MGT.ORDER_REF
-        )
-        AND INVOICE_REFERENCE IS NOT NULL
-        AND REGEXP_LIKE(INVOICE_AMOUNT, '^\d+$');
-
-  BEGIN
-    FOR supplier IN C1 LOOP
-      INSERT INTO XXBCM_SUPPLIER_TBL (
-        SUPPLIER_NAME,
-        FIRST_NAME,
-        LAST_NAME,
-        SUPP_ADDRESS,
-        TEL_NUMBER,
-        MOBILE_NUMBER,
-        SUPP_EMAIL_ADD
-      ) VALUES (
-        supplier.SUPPLIER_NAME,
-        supplier.FIRST_NAME,
-        supplier.LAST_NAME,
-        supplier.SUPP_ADDRESS,
-        supplier.TEL_NUMBER,
-        supplier.MOBILE_PHONE,
-        supplier.SUPP_EMAIL
-      );
-    END LOOP;
-
-    FOR order_rec IN C2 LOOP
-      INSERT INTO XXBCM_ORDER_TBL (
-        ORDER_REF,
-        SUPPLIER_NAME,
-        ORDER_DATE,
-        ORDER_TOTAL_AMOUNT,
-        ORDER_DESCRIPTION,
-        ORDER_STATUS,
-        ORDER_LINE_AMOUNT
-      ) VALUES (
-        order_rec.ORDER_REF,
-        order_rec.SUPPLIER_NAME,
-        order_rec.ORDER_DATE,
-        order_rec.ORDER_TOTAL_AMOUNT,
-        order_rec.ORDER_DESCRIPTION,
-        order_rec.ORDER_STATUS,
-        order_rec.ORDER_LINE_AMOUNT
-      );
-    END LOOP;
-
-    FOR invoice IN C3 LOOP
-      INSERT INTO XXBCM_INVOICE_TBL (
-        INVOICE_REFERENCE,
-        ORDER_REF,
-        INVOICE_DATE,
-        INVOICE_STATUS,
-        INVOICE_HOLD_REASON,
-        INVOICE_AMOUNT,
-        INVOICE_DESCRIPTION
-      ) VALUES (
-        invoice.INVOICE_REFERENCE,
-        invoice.ORDER_REF,
-        invoice.INVOICE_DATE,
-        invoice.INVOICE_STATUS,
-        invoice.INVOICE_HOLD_REASON,
-        invoice.INVOICE_AMOUNT,
-        invoice.INVOICE_DESCRIPTION
-      );
-    END LOOP;
-
-    COMMIT;
-  END INSERT_DATA;
-END PR_TABLE_DATA;
-
---EXEC PR_TABLE_DATA.INSERT_DATA;
-
-To run migration procedure, execute EXEC PR_TABLE_DATA.INSERT_DATA;
-
-
-
-Q4 Listing of distinct invoices and their total amount
-
-SET SERVEROUTPUT ON;
-CREATE OR REPLACE PROCEDURE REPORT_ORDER_SUMMARY IS
-
-    CURSOR order_cursor IS
-        SELECT 
-            o.ORDER_REF, 
-            TO_CHAR(o.ORDER_DATE, 'MON-YYYY') AS ORDER_PERIOD,
-            INITCAP(o.SUPPLIER_NAME) AS SUPPLIER_NAME,
-            TO_CHAR(o.ORDER_TOTAL_AMOUNT, '99,999,990.00') AS ORDER_TOTAL_AMOUNT,
-            o.ORDER_STATUS,
-            i.INVOICE_REFERENCE,
-            TO_CHAR(i.INVOICE_AMOUNT, '99,999,990.00') AS INVOICE_TOTAL_AMOUNT,
-            o.ORDER_DATE
-        FROM XXBCM_ORDER_TBL o
-        JOIN XXBCM_INVOICE_TBL i ON o.ORDER_REF = i.ORDER_REF
-        ORDER BY o.ORDER_DATE DESC;
-
-    v_action VARCHAR2(20);
-
-BEGIN
-    DBMS_OUTPUT.PUT_LINE('Order Reference | Order Period | Supplier Name | Order Total Amount | Order Status | Invoice Reference | Invoice Total Amount | Action');
-    FOR rec IN order_cursor LOOP
-        -- Determining the action based on invoice status
-        SELECT CASE 
-                   WHEN COUNT(CASE WHEN INVOICE_STATUS = 'Paid' THEN 1 END) = COUNT(*) THEN 'OK'
-                   WHEN COUNT(CASE WHEN INVOICE_STATUS = 'Pending' THEN 1 END) > 0 THEN 'To follow up'
-                   WHEN COUNT(CASE WHEN INVOICE_STATUS IS NULL OR INVOICE_STATUS = '' THEN 1 END) > 0 THEN 'To verify'
-                   ELSE 'Check data'
-               END INTO v_action
-        FROM XXBCM_INVOICE_TBL
-        WHERE ORDER_REF = rec.ORDER_REF;
-
-        DBMS_OUTPUT.PUT_LINE(
-            SUBSTR(rec.ORDER_REF, 3) || ' | ' ||
-            rec.ORDER_PERIOD || ' | ' ||
-            rec.SUPPLIER_NAME || ' | ' ||
-            rec.ORDER_TOTAL_AMOUNT || ' | ' ||
-            rec.ORDER_STATUS || ' | ' ||
-            rec.INVOICE_REFERENCE || ' | ' ||
-            rec.INVOICE_TOTAL_AMOUNT || ' | ' ||
-            v_action
-        );
-    END LOOP;
-
-END REPORT_ORDER_SUMMARY;
-
---EXEC REPORT_ORDER_SUMMARY;
-
-Explanation:
-Cursor Definition: The cursor fetches data by joining XXBCM_ORDER_TBL and XXBCM_INVOICE_TBL, ensuring the data is ordered by the most recent order date.
-Action Calculation: For each order, it determines the appropriate action based on the status of all related invoices.
-Output Formatting: It formats the output as specified, including the action status and monetary values.
-Output:
-
-To run the procedure, execute EXEC REPORT_ORDER_SUMMARY;
-
- 
-
-
-
-
-
-
-
-
-Q5 Listing of the SECOND (2nd) highest Order Total Amount
-SET SERVEROUTPUT ON;
-CREATE OR REPLACE PROCEDURE REPORT_SECOND_HIGHEST_ORDER IS
-    v_order_ref VARCHAR2(100);
-    v_order_date DATE;
-    v_supplier_name VARCHAR2(1000);
-    v_order_total_amount NUMBER;
-    v_order_status VARCHAR2(100);
-    v_invoice_references VARCHAR2(4000);
-
-BEGIN
-    -- Query to find the second highest order total amount
-    SELECT o.ORDER_REF, o.ORDER_DATE, UPPER(o.SUPPLIER_NAME) AS SUPPLIER_NAME, 
-           o.ORDER_TOTAL_AMOUNT, o.ORDER_STATUS
-      INTO v_order_ref, v_order_date, v_supplier_name, v_order_total_amount, v_order_status
-      FROM XXBCM_ORDER_TBL o
-      WHERE o.ORDER_TOTAL_AMOUNT = (
-          SELECT MAX(ORDER_TOTAL_AMOUNT) 
-          FROM XXBCM_ORDER_TBL
-          WHERE ORDER_TOTAL_AMOUNT < (
-              SELECT MAX(ORDER_TOTAL_AMOUNT) FROM XXBCM_ORDER_TBL
-          )
-      ) AND ROWNUM = 1;  -- Ensuring only one record is fetched
-
-    -- Get all invoice references for the identified order in a pipe-delimited string
-    SELECT LISTAGG(i.INVOICE_REFERENCE, '|') WITHIN GROUP (ORDER BY i.INVOICE_REFERENCE)
-      INTO v_invoice_references
-      FROM XXBCM_INVOICE_TBL i
-      WHERE i.ORDER_REF = v_order_ref;
-
-    -- Output the formatted data
-    DBMS_OUTPUT.PUT_LINE('Order Reference: ' || SUBSTR(v_order_ref, 3));  -- Removes "PO" prefix
-    DBMS_OUTPUT.PUT_LINE('Order Date: ' || TO_CHAR(v_order_date, 'fmMonth DD, YYYY'));
-    DBMS_OUTPUT.PUT_LINE('Supplier Name: ' || v_supplier_name);
-    DBMS_OUTPUT.PUT_LINE('Order Total Amount: ' || TO_CHAR(v_order_total_amount, '99,999,990.00'));
-    DBMS_OUTPUT.PUT_LINE('Order Status: ' || v_order_status);
-    DBMS_OUTPUT.PUT_LINE('Invoice References: ' || v_invoice_references);
-
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('No data found for the second highest order.');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Error occurred: ' || SQLERRM);
-END REPORT_SECOND_HIGHEST_ORDER;
-
---EXEC REPORT_SECOND_HIGHEST_ORDER;
-
-
-Explanation:
-Second Highest Order: The procedure first identifies the second highest ORDER_TOTAL_AMOUNT using a nested SELECT statement that excludes the highest amount.
-Invoice References: Using the LISTAGG function, it compiles all related invoice references into a pipe-delimited string.
-Data Extraction and Formatting: Fetches all required details for the order and formats them as specified.
-Exception Handling: Includes basic error handling for scenarios where no data matches the criteria or other errors occur.
-Output:
-
-To run the procedure, execute REPORT_SECOND_HIGHEST_ORDER;
- 
-
-
-
-
-
-
-
-
-
-
-Q6 Listing of all suppliers with their respective number of orders and total amount ordered from them between the period of 01 January 2022 and 31 August 2022.
-
-SET SERVEROUTPUT ON;
-CREATE OR REPLACE PROCEDURE REPORT_SUPPLIER_ORDERS IS
-BEGIN
-    DBMS_OUTPUT.PUT_LINE('Supplier Name | Supplier Contact Name | Contact No. 1 | Contact No. 2 | Total Orders | Order Total Amount');
-
-    FOR rec IN (
-        SELECT 
-            s.SUPPLIER_NAME,
-            s.FIRST_NAME || ' ' || s.LAST_NAME AS CONTACT_NAME,
-            REGEXP_REPLACE(s.TEL_NUMBER, '(\d{3})(\d{4})', '\1-\2') AS CONTACT_NO_1,
-            REGEXP_REPLACE(s.MOBILE_NUMBER, '(\d{4})(\d{4})', '\1-\2') AS CONTACT_NO_2,
-            COUNT(o.ORDER_ID) AS TOTAL_ORDERS,
-            TO_CHAR(SUM(o.ORDER_TOTAL_AMOUNT), '99,999,990.00') AS ORDER_TOTAL_AMOUNT
-        FROM XXBCM_SUPPLIER_TBL s
-        JOIN XXBCM_ORDER_TBL o ON s.SUPPLIER_NAME = o.SUPPLIER_NAME
-        WHERE o.ORDER_DATE BETWEEN DATE '2022-01-01' AND DATE '2022-08-31'
-        GROUP BY s.SUPPLIER_NAME, s.FIRST_NAME, s.LAST_NAME, s.TEL_NUMBER, s.MOBILE_NUMBER
-    )
-    LOOP
-        DBMS_OUTPUT.PUT_LINE(
-            rec.SUPPLIER_NAME || ' | ' ||
-            rec.CONTACT_NAME || ' | ' ||
-            rec.CONTACT_NO_1 || ' | ' ||
-            rec.CONTACT_NO_2 || ' | ' ||
-            rec.TOTAL_ORDERS || ' | ' ||
-            rec.ORDER_TOTAL_AMOUNT
-        );
-    END LOOP;
-
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('No data found for the specified period.');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Error occurred: ' || SQLERRM);
-END REPORT_SUPPLIER_ORDERS;
-
-
---EXEC REPORT_SUPPLIER_ORDERS;
-
-
-
-
-Explanation:
-Data Joining and Filtering: The procedure joins the supplier and order tables, filtering orders based on the specified date range.
-Aggregation: It counts the number of orders and sums the total amounts per supplier.
-Phone Number Formatting: Uses REGEXP_REPLACE to format contact numbers as specified.
-Output Formatting: Constructs a string for each supplier that includes all required details and prints it using DBMS_OUTPUT.PUT_LINE.
-Output:
-To run the procedure, execute REPORT_SUPPLIER_ORDERS;
- 
+
+1. Oracle SQL Developer
+1. Notepad++
+## **Proposed Database Schema**
+1. **XXBCM\_ORDER\_MGT**
+- ORDER\_REF 			
+- ORDER\_DATE 			
+- SUPPLIER\_NAME 		
+- SUPP\_CONTACT\_NAME 	
+- SUPP\_ADDRESS 		
+- SUPP\_CONTACT\_NUMBER 
+- SUPP\_EMAIL 			
+- ORDER\_TOTAL\_AMOUNT 	
+- ORDER\_DESCRIPTION 	
+- ORDER\_STATUS 		
+- ORDER\_LINE\_AMOUNT 	
+- INVOICE\_REFERENCE 	
+- INVOICE\_DATE 		
+- INVOICE\_STATUS 		
+- INVOICE\_HOLD\_REASON 
+- INVOICE\_AMOUNT 		
+- INVOICE\_DESCRIPTION 
+1. <a name="ole_link21"></a>**XXBCM\_SUPPLIER\_TBL**
+- SUPPLIER\_NAME 	
+- FIRST\_NAME
+- LAST\_NAME
+- SUPP\_ADDRESS 	
+- TEL\_NUMBER
+- MOBILE\_NUMBER
+- SUPP\_EMAIL\_ADD** 
+
+
+**	
+
+1. **XXBCM\_ORDER\_TBL**
+- ORDER\_ID
+- ORDER\_REF 		
+- SUPPLIER\_NAME		
+- ORDER\_DATE 		
+- ORDER\_TOTAL\_AMOUNT
+- ORDER\_DESCRIPTION
+- ORDER\_STATUS	
+- ORDER\_LINE\_AMOUNT
+1. **XXBCM\_INVOICE\_TBL**
+- INVOICE\_ID
+- INVOICE\_REFERENCE 	
+- ORDER\_REF		
+- INVOICE\_DATE	
+- INVOICE\_STATUS		
+- INVOICE\_HOLD\_REASON
+- INVOICE\_AMOUNT	
+- INVOICE\_DESCRIPTION
+## **Normalization**
+- **1st Normal Form (1NF):** Each table has a primary key, and all attributes contain only atomic values.
+- **2nd Normal Form (2NF):** All attributes in the table depend solely on the primary key.
+- **3rd Normal Form (3NF):** All fields can only depend on the primary key and not on other fields.
+
+
+
+
+
+
+
+
+
+
+
+
+# SQL to Create Tables
+***-- TABLE NORMALISATION***
+
+`  `**CREATE** **TABLE** XXBCM\_ORDER\_MGT 
+
+`   `**(**    
+
+`    `ORDER\_REF           **VARCHAR2(**2000**),** 
+
+`    `ORDER\_DATE          **VARCHAR2(**2000**),** 
+
+`    `SUPPLIER\_NAME       **VARCHAR2(**2000**),** 
+
+`    `SUPP\_CONTACT\_NAME   **VARCHAR2(**2000**),** 
+
+`    `SUPP\_ADDRESS        **VARCHAR2(**2000**),** 
+
+`    `SUPP\_CONTACT\_NUMBER **VARCHAR2(**2000**),** 
+
+`    `SUPP\_EMAIL          **VARCHAR2(**2000**),** 
+
+`    `ORDER\_TOTAL\_AMOUNT  **VARCHAR2(**2000**),** 
+
+`    `ORDER\_DESCRIPTION   **VARCHAR2(**2000**),** 
+
+`    `ORDER\_STATUS        **VARCHAR2(**2000**),** 
+
+`    `ORDER\_LINE\_AMOUNT   **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_REFERENCE   **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_DATE        **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_STATUS      **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_HOLD\_REASON **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_AMOUNT      **VARCHAR2(**2000**),** 
+
+`    `INVOICE\_DESCRIPTION **VARCHAR2(**2000**)**
+
+`   `**)** **;**
+
+
+
+`    `**CREATE** **TABLE** XXBCM\_SUPPLIER\_TBL
+
+`   `**(**
+
+`    `SUPPLIER\_NAME       **VARCHAR2(**1000**)** **NOT** **NULL,** 
+
+`    `FIRST\_NAME  **VARCHAR2(**500**)**  **NOT** **NULL,**
+
+`    `LAST\_NAME   **VARCHAR2(**500**)**  **NOT** **NULL,**    
+
+`    `SUPP\_ADDRESS        **VARCHAR2(**2000**),**
+
+`    `TEL\_NUMBER **VARCHAR2(**8**),**
+
+`    `MOBILE\_NUMBER **VARCHAR2(**8**),**  
+
+`    `SUPP\_EMAIL\_ADD          **VARCHAR2(**200**),**
+
+`    `**CONSTRAINT** XXBCM\_SUPPLIER\_PK **PRIMARY** **KEY** **(**SUPPLIER\_NAME**)**
+
+`    `**)** **;**
+
+
+
+**CREATE** **TABLE** XXBCM\_ORDER\_TBL
+
+`   `**(**
+
+`    `ORDER\_ID **INTEGER** GENERATED ALWAYS **AS** **IDENTITY** **(START** **WITH** 1 **INCREMENT** **BY** 1**)** **NOT** **NULL,**
+
+`    `ORDER\_REF           **VARCHAR2(**15**)** **NOT** **NULL,** 
+
+`    `SUPPLIER\_NAME       **VARCHAR2(**1000**)** **NOT** **NULL,**
+
+`    `ORDER\_DATE          **DATE,**
+
+`    `ORDER\_TOTAL\_AMOUNT  **NUMERIC(**15**,**2**),** 
+
+`    `ORDER\_DESCRIPTION   **VARCHAR2(**2000**),** 
+
+`    `ORDER\_STATUS        **VARCHAR2(**15**),** 
+
+`    `ORDER\_LINE\_AMOUNT   **NUMERIC(**15**,**2**),**
+
+`    `**CONSTRAINT** XXBCM\_ORDER\_PK **PRIMARY** **KEY** **(**ORDER\_ID**,** ORDER\_REF**),**
+
+`    `**CONSTRAINT** XXBCM\_SUPPLIER\_FK **FOREIGN** **KEY** **(**SUPPLIER\_NAME**)** **REFERENCES** XXBCM\_SUPPLIER\_TBL **(**SUPPLIER\_NAME**)**
+
+`    `**)** **;**
+
+
+
+
+
+`    `**CREATE** **TABLE** XXBCM\_INVOICE\_TBL
+
+`   `**(**
+
+`    `INVOICE\_ID **INTEGER** GENERATED ALWAYS **AS** **IDENTITY** **(START** **WITH** 1 **INCREMENT** **BY** 1**)** **NOT** **NULL,**
+
+`    `INVOICE\_REFERENCE   **VARCHAR2(**2000**)** **NOT** **NULL,** 
+
+`    `ORDER\_REF           **VARCHAR2(**15**)** **NOT** **NULL,**
+
+`    `INVOICE\_DATE        **DATE,** 
+
+`    `INVOICE\_STATUS      **VARCHAR2(**15**),** 
+
+`    `INVOICE\_HOLD\_REASON **VARCHAR2(**200**),** 
+
+`    `INVOICE\_AMOUNT      **NUMERIC(**15**,**2**),** 
+
+`    `INVOICE\_DESCRIPTION **VARCHAR2(**2000**),**
+
+`    `**CONSTRAINT** XXBCM\_INVOICE\_ORD\_PK **PRIMARY** **KEY** **(**INVOICE\_ID**,**INVOICE\_REFERENCE**,**ORDER\_REF**)**
+
+`    `**)** **;**
+
+# Migration – SQL Procedure
+
+**CREATE** **OR** **REPLACE** **PACKAGE** PR\_TABLE\_DATA **AS**
+
+`  `**PROCEDURE** INSERT\_DATA**;**
+
+**END** PR\_TABLE\_DATA**;**
+
+**/**
+
+**CREATE** **OR** **REPLACE** **PACKAGE** **BODY** PR\_TABLE\_DATA **AS**
+
+`  `**PROCEDURE** INSERT\_DATA **IS**
+
+`    `***-- Supplier cursor***
+
+`    `**CURSOR** C1 **IS**
+
+`      `**SELECT** **DISTINCT**
+
+`             `SUPPLIER\_NAME**,**
+
+`             `REGEXP\_SUBSTR**(**SUPP\_CONTACT\_NAME**,** '^[^ ]+'**)** **AS** FIRST\_NAME**,**
+
+`             `REGEXP\_SUBSTR**(**SUPP\_CONTACT\_NAME**,** ' [^ ]+$'**)** **AS** LAST\_NAME**,**
+
+`             `SUPP\_ADDRESS**,**
+
+`             `REGEXP\_SUBSTR**(**SUPP\_CONTACT\_NUMBER**,** '\d{7,}'**)** **AS** TEL\_NUMBER**,**
+
+`             `REGEXP\_SUBSTR**(**SUPP\_CONTACT\_NUMBER**,** '\d{8,}'**)** **AS** MOBILE\_PHONE**,**
+
+`             `SUPP\_EMAIL
+
+`      `**FROM** XXBCM\_ORDER\_MGT
+
+`      `**WHERE** **NOT** **EXISTS** **(**
+
+`          `**SELECT** 1
+
+`          `**FROM** XXBCM\_SUPPLIER\_TBL
+
+`          `**WHERE** XXBCM\_SUPPLIER\_TBL**.**SUPPLIER\_NAME **=** XXBCM\_ORDER\_MGT**.**SUPPLIER\_NAME
+
+`        `**)**
+
+`        `**AND** REGEXP\_LIKE**(**SUPP\_CONTACT\_NUMBER**,** '\d{7,}'**)**
+
+`        `**AND** REGEXP\_LIKE**(**SUPP\_CONTACT\_NUMBER**,** '\d{8,}'**);**
+
+`    `***-- Order cursor***
+
+`    `**CURSOR** C2 **IS**
+
+`      `**SELECT** **DISTINCT**
+
+`             `ORDER\_REF**,**
+
+`             `SUPPLIER\_NAME**,**
+
+`             `**TO\_DATE(**ORDER\_DATE**,** 'DD-MON-YYYY'**)** **AS** ORDER\_DATE**,**
+
+`             `**TO\_NUMBER(REPLACE(**ORDER\_TOTAL\_AMOUNT**,** ','**))** **AS** ORDER\_TOTAL\_AMOUNT**,**
+
+`             `ORDER\_DESCRIPTION**,**
+
+`             `ORDER\_STATUS**,**
+
+`             `**TO\_NUMBER(REPLACE(**ORDER\_LINE\_AMOUNT**,** ','**))** **AS** ORDER\_LINE\_AMOUNT
+
+`      `**FROM** XXBCM\_ORDER\_MGT
+
+`      `**WHERE** **NOT** **EXISTS** **(**
+
+`          `**SELECT** 1
+
+`          `**FROM** XXBCM\_ORDER\_TBL
+
+`          `**WHERE** XXBCM\_ORDER\_TBL**.**ORDER\_REF **=** XXBCM\_ORDER\_MGT**.**ORDER\_REF
+
+`        `**)**
+
+`        `**AND** REGEXP\_LIKE**(**ORDER\_TOTAL\_AMOUNT**,** '^\d+$'**)**
+
+`        `**AND** REGEXP\_LIKE**(**ORDER\_LINE\_AMOUNT**,** '^\d+$'**);**
+
+`    `***-- Invoice cursor***
+
+`    `**CURSOR** C3 **IS**
+
+`      `**SELECT**
+
+`            `INVOICE\_REFERENCE**,**
+
+`            `ORDER\_REF**,**
+
+`            `**TO\_DATE(**INVOICE\_DATE**,** 'DD-MM-YYYY'**)** **AS** INVOICE\_DATE**,**
+
+`            `INVOICE\_STATUS**,**
+
+`            `INVOICE\_HOLD\_REASON**,**
+
+`            `**TO\_NUMBER(REPLACE(**INVOICE\_AMOUNT**,** ','**))** **AS** INVOICE\_AMOUNT**,**
+
+`            `INVOICE\_DESCRIPTION
+
+`      `**FROM** XXBCM\_ORDER\_MGT
+
+`      `**WHERE** **NOT** **EXISTS** **(**
+
+`          `**SELECT** 1
+
+`          `**FROM** XXBCM\_INVOICE\_TBL
+
+`          `**WHERE** XXBCM\_INVOICE\_TBL**.**INVOICE\_REFERENCE **=** XXBCM\_ORDER\_MGT**.**INVOICE\_REFERENCE
+
+`            `**AND** XXBCM\_INVOICE\_TBL**.**ORDER\_REF **=** XXBCM\_ORDER\_MGT**.**ORDER\_REF
+
+`        `**)**
+
+`        `**AND** INVOICE\_REFERENCE **IS** **NOT** **NULL**
+
+`        `**AND** REGEXP\_LIKE**(**INVOICE\_AMOUNT**,** '^\d+$'**);**
+
+`  `**BEGIN**
+
+`    `**FOR** supplier **IN** C1 **LOOP**
+
+`      `**INSERT** **INTO** XXBCM\_SUPPLIER\_TBL **(**
+
+`        `SUPPLIER\_NAME**,**
+
+`        `FIRST\_NAME**,**
+
+`        `LAST\_NAME**,**
+
+`        `SUPP\_ADDRESS**,**
+
+`        `TEL\_NUMBER**,**
+
+`        `MOBILE\_NUMBER**,**
+
+`        `SUPP\_EMAIL\_ADD
+
+`      `**)** **VALUES** **(**
+
+`        `supplier**.**SUPPLIER\_NAME**,**
+
+`        `supplier**.**FIRST\_NAME**,**
+
+`        `supplier**.**LAST\_NAME**,**
+
+`        `supplier**.**SUPP\_ADDRESS**,**
+
+`        `supplier**.**TEL\_NUMBER**,**
+
+`        `supplier**.**MOBILE\_PHONE**,**
+
+`        `supplier**.**SUPP\_EMAIL
+
+`      `**);**
+
+`    `**END** **LOOP;**
+
+`    `**FOR** order\_rec **IN** C2 **LOOP**
+
+`      `**INSERT** **INTO** XXBCM\_ORDER\_TBL **(**
+
+`        `ORDER\_REF**,**
+
+`        `SUPPLIER\_NAME**,**
+
+`        `ORDER\_DATE**,**
+
+`        `ORDER\_TOTAL\_AMOUNT**,**
+
+`        `ORDER\_DESCRIPTION**,**
+
+`        `ORDER\_STATUS**,**
+
+`        `ORDER\_LINE\_AMOUNT
+
+`      `**)** **VALUES** **(**
+
+`        `order\_rec**.**ORDER\_REF**,**
+
+`        `order\_rec**.**SUPPLIER\_NAME**,**
+
+`        `order\_rec**.**ORDER\_DATE**,**
+
+`        `order\_rec**.**ORDER\_TOTAL\_AMOUNT**,**
+
+`        `order\_rec**.**ORDER\_DESCRIPTION**,**
+
+`        `order\_rec**.**ORDER\_STATUS**,**
+
+`        `order\_rec**.**ORDER\_LINE\_AMOUNT
+
+`      `**);**
+
+`    `**END** **LOOP;**
+
+`    `**FOR** invoice **IN** C3 **LOOP**
+
+`      `**INSERT** **INTO** XXBCM\_INVOICE\_TBL **(**
+
+`        `INVOICE\_REFERENCE**,**
+
+`        `ORDER\_REF**,**
+
+`        `INVOICE\_DATE**,**
+
+`        `INVOICE\_STATUS**,**
+
+`        `INVOICE\_HOLD\_REASON**,**
+
+`        `INVOICE\_AMOUNT**,**
+
+`        `INVOICE\_DESCRIPTION
+
+`      `**)** **VALUES** **(**
+
+`        `invoice**.**INVOICE\_REFERENCE**,**
+
+`        `invoice**.**ORDER\_REF**,**
+
+`        `invoice**.**INVOICE\_DATE**,**
+
+`        `invoice**.**INVOICE\_STATUS**,**
+
+`        `invoice**.**INVOICE\_HOLD\_REASON**,**
+
+`        `invoice**.**INVOICE\_AMOUNT**,**
+
+`        `invoice**.**INVOICE\_DESCRIPTION
+
+`      `**);**
+
+`    `**END** **LOOP;**
+
+`    `**COMMIT;**
+
+`  `**END** INSERT\_DATA**;**
+
+**END** PR\_TABLE\_DATA**;**
+
+***--<a name="ole_link1"></a><a name="ole_link2"></a>EXEC PR\_TABLE\_DATA.INSERT\_DATA;***
+
+<a name="ole_link3"></a><a name="ole_link4"></a>To run migration procedure, execute ***EXEC PR\_TABLE\_DATA.INSERT\_DATA;***
+
+
+
+# Q4 Listing of distinct invoices and their total amount
+
+**SET** SERVEROUTPUT **ON;**
+
+**CREATE** **OR** **REPLACE** **PROCEDURE** REPORT\_ORDER\_SUMMARY **IS**
+
+`    `**CURSOR** order\_cursor **IS**
+
+`        `**SELECT** 
+
+`            `o**.**ORDER\_REF**,** 
+
+`            `**TO\_CHAR(**o**.**ORDER\_DATE**,** 'MON-YYYY'**)** **AS** ORDER\_PERIOD**,**
+
+`            `**INITCAP(**o**.**SUPPLIER\_NAME**)** **AS** SUPPLIER\_NAME**,**
+
+`            `**TO\_CHAR(**o**.**ORDER\_TOTAL\_AMOUNT**,** '99,999,990.00'**)** **AS** ORDER\_TOTAL\_AMOUNT**,**
+
+`            `o**.**ORDER\_STATUS**,**
+
+`            `i**.**INVOICE\_REFERENCE**,**
+
+`            `**TO\_CHAR(**i**.**INVOICE\_AMOUNT**,** '99,999,990.00'**)** **AS** INVOICE\_TOTAL\_AMOUNT**,**
+
+`            `o**.**ORDER\_DATE
+
+`        `**FROM** XXBCM\_ORDER\_TBL o
+
+`        `**JOIN** XXBCM\_INVOICE\_TBL i **ON** o**.**ORDER\_REF **=** i**.**ORDER\_REF
+
+`        `**ORDER** **BY** o**.**ORDER\_DATE **DESC;**
+
+`    `v\_action **VARCHAR2(**20**);**
+
+**BEGIN**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Order Reference | Order Period | Supplier Name | Order Total Amount | Order Status | Invoice Reference | Invoice Total Amount | Action'**);**
+
+`    `**FOR** rec **IN** order\_cursor **LOOP**
+
+`        `***-- Determining the action based on invoice status***
+
+`        `**SELECT** **CASE** 
+
+`                   `**WHEN** **COUNT(CASE** **WHEN** INVOICE\_STATUS **=** 'Paid' **THEN** 1 **END)** **=** **COUNT(\*)** **THEN** 'OK'
+
+`                   `**WHEN** **COUNT(CASE** **WHEN** INVOICE\_STATUS **=** 'Pending' **THEN** 1 **END)** **>** 0 **THEN** 'To follow up'
+
+`                   `**WHEN** **COUNT(CASE** **WHEN** INVOICE\_STATUS **IS** **NULL** **OR** INVOICE\_STATUS **=** '' **THEN** 1 **END)** **>** 0 **THEN** 'To verify'
+
+`                   `**ELSE** 'Check data'
+
+`               `**END** **INTO** v\_action
+
+`        `**FROM** XXBCM\_INVOICE\_TBL
+
+`        `**WHERE** ORDER\_REF **=** rec**.**ORDER\_REF**;**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**
+
+`            `**SUBSTR(**rec**.**ORDER\_REF**,** 3**)** **||** ' | ' **||**
+
+`            `rec**.**ORDER\_PERIOD **||** ' | ' **||**
+
+`            `rec**.**SUPPLIER\_NAME **||** ' | ' **||**
+
+`            `rec**.**ORDER\_TOTAL\_AMOUNT **||** ' | ' **||**
+
+`            `rec**.**ORDER\_STATUS **||** ' | ' **||**
+
+`            `rec**.**INVOICE\_REFERENCE **||** ' | ' **||**
+
+`            `rec**.**INVOICE\_TOTAL\_AMOUNT **||** ' | ' **||**
+
+`            `v\_action
+
+`        `**);**
+
+`    `**END** **LOOP;**
+
+**END** REPORT\_ORDER\_SUMMARY**;**
+
+***--<a name="ole_link5"></a><a name="ole_link6"></a>EXEC REPORT\_ORDER\_SUMMARY;***
+
+**Explanation:**
+
+**Cursor Definition:** The cursor fetches data by joining XXBCM\_ORDER\_TBL and XXBCM\_INVOICE\_TBL, ensuring the data is ordered by the most recent order date.
+
+**Action Calculation:** For each order, it determines the appropriate action based on the status of all related invoices.
+
+**Output Formatting:** It formats the output as specified, including the action status and monetary values.
+# <a name="ole_link7"></a>Output:
+
+To run the procedure, execute ***EXEC REPORT\_ORDER\_SUMMARY;***
+
+![](Aspose.Words.fce03360-eb3f-4255-ace0-3b6f7ab2f2c9.001.png "Q4")
+
+
+
+
+
+
+
+
+# Q5 Listing of the SECOND (2nd) highest Order Total Amount
+**SET** SERVEROUTPUT **ON;**
+
+**CREATE** **OR** **REPLACE** **PROCEDURE** REPORT\_SECOND\_HIGHEST\_ORDER **IS**
+
+`    `v\_order\_ref **VARCHAR2(**100**);**
+
+`    `v\_order\_date **DATE;**
+
+`    `v\_supplier\_name **VARCHAR2(**1000**);**
+
+`    `v\_order\_total\_amount **NUMBER;**
+
+`    `v\_order\_status **VARCHAR2(**100**);**
+
+`    `v\_invoice\_references **VARCHAR2(**4000**);**
+
+**BEGIN**
+
+`    `***-- Query to find the second highest order total amount***
+
+`    `**SELECT** o**.**ORDER\_REF**,** o**.**ORDER\_DATE**,** **UPPER(**o**.**SUPPLIER\_NAME**)** **AS** SUPPLIER\_NAME**,** 
+
+`           `o**.**ORDER\_TOTAL\_AMOUNT**,** o**.**ORDER\_STATUS
+
+`      `**INTO** v\_order\_ref**,** v\_order\_date**,** v\_supplier\_name**,** v\_order\_total\_amount**,** v\_order\_status
+
+`      `**FROM** XXBCM\_ORDER\_TBL o
+
+`      `**WHERE** o**.**ORDER\_TOTAL\_AMOUNT **=** **(**
+
+`          `**SELECT** **MAX(**ORDER\_TOTAL\_AMOUNT**)** 
+
+`          `**FROM** XXBCM\_ORDER\_TBL
+
+`          `**WHERE** ORDER\_TOTAL\_AMOUNT **<** **(**
+
+`              `**SELECT** **MAX(**ORDER\_TOTAL\_AMOUNT**)** **FROM** XXBCM\_ORDER\_TBL
+
+`          `**)**
+
+`      `**)** **AND** **ROWNUM** **=** 1**;**  ***-- Ensuring only one record is fetched***
+
+`    `***-- Get all invoice references for the identified order in a pipe-delimited string***
+
+`    `**SELECT** LISTAGG**(**i**.**INVOICE\_REFERENCE**,** '|'**)** WITHIN **GROUP** **(ORDER** **BY** i**.**INVOICE\_REFERENCE**)**
+
+`      `**INTO** v\_invoice\_references
+
+`      `**FROM** XXBCM\_INVOICE\_TBL i
+
+`      `**WHERE** i**.**ORDER\_REF **=** v\_order\_ref**;**
+
+`    `***-- Output the formatted data***
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Order Reference: ' **||** **SUBSTR(**v\_order\_ref**,** 3**));**  ***-- Removes "PO" prefix***
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Order Date: ' **||** **TO\_CHAR(**v\_order\_date**,** 'fmMonth DD, YYYY'**));**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Supplier Name: ' **||** v\_supplier\_name**);**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Order Total Amount: ' **||** **TO\_CHAR(**v\_order\_total\_amount**,** '99,999,990.00'**));**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Order Status: ' **||** v\_order\_status**);**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Invoice References: ' **||** v\_invoice\_references**);**
+
+**EXCEPTION**
+
+`    `**WHEN** NO\_DATA\_FOUND **THEN**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**'No data found for the second highest order.'**);**
+
+`    `**WHEN** **OTHERS** **THEN**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**'Error occurred: ' **||** **SQLERRM);**
+
+**END** REPORT\_SECOND\_HIGHEST\_ORDER**;**
+
+***--EXEC <a name="ole_link9"></a><a name="ole_link10"></a>REPORT\_SECOND\_HIGHEST\_ORDER;***
+
+
+**Explanation:**
+
+**Second Highest Order:** The procedure first identifies the second highest ORDER\_TOTAL\_AMOUNT using a nested SELECT statement that excludes the highest amount.
+
+**Invoice References:** Using the LISTAGG function, it compiles all related invoice references into a pipe-delimited string.
+
+**Data Extraction and Formatting:** Fetches all required details for the order and formats them as specified.
+
+**Exception Handling:** Includes basic error handling for scenarios where no data matches the criteria or other errors occur.
+# <a name="ole_link11"></a><a name="ole_link12"></a>Output:
+
+To run the procedure, execute ***REPORT\_SECOND\_HIGHEST\_ORDER;***
+
+![](Aspose.Words.fce03360-eb3f-4255-ace0-3b6f7ab2f2c9.002.png "Q5")
+
+
+
+
+
+
+
+
+
+
+# Q6 Listing of all suppliers with their respective number of orders and total amount ordered from them between the period of 01 January 2022 and 31 August 2022.
+
+**SET** SERVEROUTPUT **ON;**
+
+**CREATE** **OR** **REPLACE** **PROCEDURE** REPORT\_SUPPLIER\_ORDERS **IS**
+
+**BEGIN**
+
+`    `DBMS\_OUTPUT**.**PUT\_LINE**(**'Supplier Name | Supplier Contact Name | Contact No. 1 | Contact No. 2 | Total Orders | Order Total Amount'**);**
+
+`    `**FOR** rec **IN** **(**
+
+`        `**SELECT** 
+
+`            `s**.**SUPPLIER\_NAME**,**
+
+`            `s**.**FIRST\_NAME **||** ' ' **||** s**.**LAST\_NAME **AS** CONTACT\_NAME**,**
+
+`            `REGEXP\_REPLACE**(**s**.**TEL\_NUMBER**,** '(\d{3})(\d{4})'**,** '\1-\2'**)** **AS** CONTACT\_NO\_1**,**
+
+`            `REGEXP\_REPLACE**(**s**.**MOBILE\_NUMBER**,** '(\d{4})(\d{4})'**,** '\1-\2'**)** **AS** CONTACT\_NO\_2**,**
+
+`            `**COUNT(**o**.**ORDER\_ID**)** **AS** TOTAL\_ORDERS**,**
+
+`            `**TO\_CHAR(SUM(**o**.**ORDER\_TOTAL\_AMOUNT**),** '99,999,990.00'**)** **AS** ORDER\_TOTAL\_AMOUNT
+
+`        `**FROM** XXBCM\_SUPPLIER\_TBL s
+
+`        `**JOIN** XXBCM\_ORDER\_TBL o **ON** s**.**SUPPLIER\_NAME **=** o**.**SUPPLIER\_NAME
+
+`        `**WHERE** o**.**ORDER\_DATE **BETWEEN** **DATE** '2022-01-01' **AND** **DATE** '2022-08-31'
+
+`        `**GROUP** **BY** s**.**SUPPLIER\_NAME**,** s**.**FIRST\_NAME**,** s**.**LAST\_NAME**,** s**.**TEL\_NUMBER**,** s**.**MOBILE\_NUMBER
+
+`    `**)**
+
+`    `**LOOP**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**
+
+`            `rec**.**SUPPLIER\_NAME **||** ' | ' **||**
+
+`            `rec**.**CONTACT\_NAME **||** ' | ' **||**
+
+`            `rec**.**CONTACT\_NO\_1 **||** ' | ' **||**
+
+`            `rec**.**CONTACT\_NO\_2 **||** ' | ' **||**
+
+`            `rec**.**TOTAL\_ORDERS **||** ' | ' **||**
+
+`            `rec**.**ORDER\_TOTAL\_AMOUNT
+
+`        `**);**
+
+`    `**END** **LOOP;**
+
+**EXCEPTION**
+
+`    `**WHEN** NO\_DATA\_FOUND **THEN**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**'No data found for the specified period.'**);**
+
+`    `**WHEN** **OTHERS** **THEN**
+
+`        `DBMS\_OUTPUT**.**PUT\_LINE**(**'Error occurred: ' **||** **SQLERRM);**
+
+**END** REPORT\_SUPPLIER\_ORDERS**;**
+
+
+***--EXEC REPORT\_SUPPLIER\_ORDERS;***
+
+
+
+
+**Explanation:**
+
+**Data Joining and Filtering:** The procedure joins the supplier and order tables, filtering orders based on the specified date range.
+
+**Aggregation:** It counts the number of orders and sums the total amounts per supplier.
+
+**Phone Number Formatting:** Uses REGEXP\_REPLACE to format contact numbers as specified.
+
+**Output Formatting:** Constructs a string for each supplier that includes all required details and prints it using DBMS\_OUTPUT.PUT\_LINE.
+# Output:
+To run the procedure, execute ***REPORT\_SUPPLIER\_ORDERS;***
+
+![](Aspose.Words.fce03360-eb3f-4255-ace0-3b6f7ab2f2c9.003.png "Q6")
+
+11
 
